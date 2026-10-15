@@ -1,7 +1,7 @@
 (() => {
 'use strict';
 const $=s=>document.querySelector(s),player=$('#player');
-const books={1:window.TWILIGHT_BOOK,...(window.TWILIGHT_CHAPTER_TWO?{2:window.TWILIGHT_CHAPTER_TWO}:{})},audios={1:window.TWILIGHT_AUDIO,2:window.TWILIGHT_AUDIO_TWO};
+const books={1:window.TWILIGHT_BOOK,...(window.TWILIGHT_CHAPTER_TWO?{2:window.TWILIGHT_CHAPTER_TWO}:{}),...(window.TWILIGHT_CHAPTER_THREE?{3:window.TWILIGHT_CHAPTER_THREE}:{})},audios={1:window.TWILIGHT_AUDIO,2:window.TWILIGHT_AUDIO_TWO,3:window.TWILIGHT_AUDIO_THREE};
 let currentChapter=1;try{const savedChapter=Number(localStorage.getItem('twilight-mn-current-chapter'));if(books[savedChapter])currentChapter=savedChapter;}catch{}
 let B=books[currentChapter],A=audios[currentChapter],KEY=B.id;
 const esc=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -101,7 +101,7 @@ function addWord(k,index=null){if(!Object.hasOwn(B.lex,k)||state.saved.includes(
 }
 
 function clip(){return A?.clips?.[A.scenes?.[B.scenes[state.scene].id]?.[state.level]];}
-function renderAudio(){const c=clip();$('#listen').disabled=!c;$('#audio-stop').disabled=!c;$('#sentence-audio').hidden=!c?.cues?.length;$('#sentence-audio summary').textContent='Слушать отдельные предложения ('+(c?.cues?.length||0)+')';$('#audio-state').textContent=c?'Синтетическая озвучка · Microsoft Yesui':'Озвучка ещё не подключена';$('#audio-about').hidden=!c;if(c){if(player.getAttribute('src')!==c.src)player.src=c.src;player.playbackRate=Number($('#speed').value);$('#audio-sentences').innerHTML=c.cues.map((q,i)=>`<button type="button" data-audio-sentence="${i}">▶ ${i+1}. ${esc(q.text)}</button>`).join('');}else player.removeAttribute('src');}
+function renderAudio(){const c=clip();$('#listen').disabled=!c;$('#audio-stop').disabled=!c;$('#sentence-audio').hidden=!c?.cues?.length;$('#sentence-audio summary').textContent='Слушать отдельные предложения ('+(c?.cues?.length||0)+')';$('#audio-state').textContent=c?'':'Озвучка ещё не подключена';$('#audio-about').hidden=!c;if(c){if(player.getAttribute('src')!==c.src)player.src=c.src;player.playbackRate=Number($('#speed').value);$('#audio-sentences').innerHTML=c.cues.map((q,i)=>`<button type="button" data-audio-sentence="${i}">▶ ${i+1}. ${esc(q.text)}</button>`).join('');}else player.removeAttribute('src');}
 function renderRead(){const s=B.scenes[state.scene];$('#art').src=B.assets[s.art];$('#art').alt='Иллюстрация сцены «'+s.title+'»';$('#location').textContent=s.location;$('#title').textContent=s.title;$('#position').textContent=`Эпизод ${state.scene+1} из ${B.scenes.length}`;$('#page-number').textContent=`PDF · стр. ${s.page}${s.page!==s.endPage?'–'+s.endPage:''}`;$('#level-note').textContent='';renderText();renderHelp();
  const cs=B.corrections.filter(c=>c.scene===state.scene);$('#corrections').innerHTML=cs.length?'<ul>'+cs.map(c=>`<li><span lang="mn">${esc(c.before)}</span> → <strong lang="mn">${esc(c.after)}</strong></li>`).join('')+'</ul>':'<p>В этом эпизоде исправления не понадобились.</p>';$('#source-text').textContent=s.sourceText;
  $('#previous').disabled=state.scene===0;$('#next').textContent=state.scene===B.scenes.length-1?'Отметить финал главы ✓':'Продолжить историю →';
