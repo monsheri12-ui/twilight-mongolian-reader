@@ -1,7 +1,7 @@
 (() => {
 'use strict';
 const $=s=>document.querySelector(s),player=$('#player');
-const books={1:window.TWILIGHT_BOOK,...(window.TWILIGHT_CHAPTER_TWO?{2:window.TWILIGHT_CHAPTER_TWO}:{}),...(window.TWILIGHT_CHAPTER_THREE?{3:window.TWILIGHT_CHAPTER_THREE}:{}),...(window.TWILIGHT_CHAPTER_FOUR?{4:window.TWILIGHT_CHAPTER_FOUR}:{}),...(window.TWILIGHT_CHAPTER_FIVE?{5:window.TWILIGHT_CHAPTER_FIVE}:{}),...(window.TWILIGHT_CHAPTER_SIX?{6:window.TWILIGHT_CHAPTER_SIX}:{})},audios={1:window.TWILIGHT_AUDIO,2:window.TWILIGHT_AUDIO_TWO,3:window.TWILIGHT_AUDIO_THREE,4:window.TWILIGHT_AUDIO_FOUR,5:window.TWILIGHT_AUDIO_FIVE,6:window.TWILIGHT_AUDIO_SIX};
+const books={1:window.TWILIGHT_BOOK,...(window.TWILIGHT_CHAPTER_TWO?{2:window.TWILIGHT_CHAPTER_TWO}:{}),...(window.TWILIGHT_CHAPTER_THREE?{3:window.TWILIGHT_CHAPTER_THREE}:{}),...(window.TWILIGHT_CHAPTER_FOUR?{4:window.TWILIGHT_CHAPTER_FOUR}:{}),...(window.TWILIGHT_CHAPTER_FIVE?{5:window.TWILIGHT_CHAPTER_FIVE}:{}),...(window.TWILIGHT_CHAPTER_SIX?{6:window.TWILIGHT_CHAPTER_SIX}:{}),...(window.TWILIGHT_CHAPTER_SEVEN?{7:window.TWILIGHT_CHAPTER_SEVEN}:{})},audios={1:window.TWILIGHT_AUDIO,2:window.TWILIGHT_AUDIO_TWO,3:window.TWILIGHT_AUDIO_THREE,4:window.TWILIGHT_AUDIO_FOUR,5:window.TWILIGHT_AUDIO_FIVE,6:window.TWILIGHT_AUDIO_SIX,7:window.TWILIGHT_AUDIO_SEVEN};
 let currentChapter=1;try{const savedChapter=Number(localStorage.getItem('twilight-mn-current-chapter'));if(books[savedChapter])currentChapter=savedChapter;}catch{}
 let B=books[currentChapter],A=audios[currentChapter],KEY=B.id;
 const esc=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
