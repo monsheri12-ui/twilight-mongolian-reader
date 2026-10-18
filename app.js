@@ -1,8 +1,34 @@
-(() => {
+(async () => {
 'use strict';
 const $=s=>document.querySelector(s),player=$('#player');
-const books={1:window.TWILIGHT_BOOK,...(window.TWILIGHT_CHAPTER_TWO?{2:window.TWILIGHT_CHAPTER_TWO}:{}),...(window.TWILIGHT_CHAPTER_THREE?{3:window.TWILIGHT_CHAPTER_THREE}:{}),...(window.TWILIGHT_CHAPTER_FOUR?{4:window.TWILIGHT_CHAPTER_FOUR}:{}),...(window.TWILIGHT_CHAPTER_FIVE?{5:window.TWILIGHT_CHAPTER_FIVE}:{}),...(window.TWILIGHT_CHAPTER_SIX?{6:window.TWILIGHT_CHAPTER_SIX}:{}),...(window.TWILIGHT_CHAPTER_SEVEN?{7:window.TWILIGHT_CHAPTER_SEVEN}:{}),...(window.TWILIGHT_CHAPTER_EIGHT?{8:window.TWILIGHT_CHAPTER_EIGHT}:{}),...(window.TWILIGHT_CHAPTER_NINE?{9:window.TWILIGHT_CHAPTER_NINE}:{}),...(window.TWILIGHT_CHAPTER_TEN?{10:window.TWILIGHT_CHAPTER_TEN}:{}),...(window.TWILIGHT_CHAPTER_ELEVEN?{11:window.TWILIGHT_CHAPTER_ELEVEN}:{}),...(window.TWILIGHT_CHAPTER_TWELVE?{12:window.TWILIGHT_CHAPTER_TWELVE}:{}),...(window.TWILIGHT_CHAPTER_THIRTEEN?{13:window.TWILIGHT_CHAPTER_THIRTEEN}:{})},audios={1:window.TWILIGHT_AUDIO,2:window.TWILIGHT_AUDIO_TWO,3:window.TWILIGHT_AUDIO_THREE,4:window.TWILIGHT_AUDIO_FOUR,5:window.TWILIGHT_AUDIO_FIVE,6:window.TWILIGHT_AUDIO_SIX,7:window.TWILIGHT_AUDIO_SEVEN,8:window.TWILIGHT_AUDIO_EIGHT,9:window.TWILIGHT_AUDIO_NINE,10:window.TWILIGHT_AUDIO_TEN,11:window.TWILIGHT_AUDIO_ELEVEN,12:window.TWILIGHT_AUDIO_TWELVE,13:window.TWILIGHT_AUDIO_THIRTEEN};
-let currentChapter=1;try{const savedChapter=Number(localStorage.getItem('twilight-mn-current-chapter'));if(books[savedChapter])currentChapter=savedChapter;}catch{}
+const chapterGlobals={"1":["TWILIGHT_BOOK","TWILIGHT_AUDIO"],"2":["TWILIGHT_CHAPTER_TWO","TWILIGHT_AUDIO_TWO"],"3":["TWILIGHT_CHAPTER_THREE","TWILIGHT_AUDIO_THREE"],"4":["TWILIGHT_CHAPTER_FOUR","TWILIGHT_AUDIO_FOUR"],"5":["TWILIGHT_CHAPTER_FIVE","TWILIGHT_AUDIO_FIVE"],"6":["TWILIGHT_CHAPTER_SIX","TWILIGHT_AUDIO_SIX"],"7":["TWILIGHT_CHAPTER_SEVEN","TWILIGHT_AUDIO_SEVEN"],"8":["TWILIGHT_CHAPTER_EIGHT","TWILIGHT_AUDIO_EIGHT"],"9":["TWILIGHT_CHAPTER_NINE","TWILIGHT_AUDIO_NINE"],"10":["TWILIGHT_CHAPTER_TEN","TWILIGHT_AUDIO_TEN"],"11":["TWILIGHT_CHAPTER_ELEVEN","TWILIGHT_AUDIO_ELEVEN"],"12":["TWILIGHT_CHAPTER_TWELVE","TWILIGHT_AUDIO_TWELVE"],"13":["TWILIGHT_CHAPTER_THIRTEEN","TWILIGHT_AUDIO_THIRTEEN"],"0":["TWILIGHT_CHAPTER_0","TWILIGHT_AUDIO_0"],"14":["TWILIGHT_CHAPTER_14","TWILIGHT_AUDIO_14"],"15":["TWILIGHT_CHAPTER_15","TWILIGHT_AUDIO_15"],"16":["TWILIGHT_CHAPTER_16","TWILIGHT_AUDIO_16"],"17":["TWILIGHT_CHAPTER_17","TWILIGHT_AUDIO_17"],"18":["TWILIGHT_CHAPTER_18","TWILIGHT_AUDIO_18"],"19":["TWILIGHT_CHAPTER_19","TWILIGHT_AUDIO_19"],"20":["TWILIGHT_CHAPTER_20","TWILIGHT_AUDIO_20"],"21":["TWILIGHT_CHAPTER_21","TWILIGHT_AUDIO_21"],"22":["TWILIGHT_CHAPTER_22","TWILIGHT_AUDIO_22"],"23":["TWILIGHT_CHAPTER_23","TWILIGHT_AUDIO_23"],"24":["TWILIGHT_CHAPTER_24","TWILIGHT_AUDIO_24"],"25":["TWILIGHT_CHAPTER_25","TWILIGHT_AUDIO_25"]},books={},audios={},chapterLoads=new Map(),dataVersion='20261018-4';
+const availableChapters=new Set([...$('#chapter').options].map(option=>Number(option.value)));
+for(const [number,names]of Object.entries(chapterGlobals)){if(window[names[0]])books[number]=window[names[0]];if(window[names[1]])audios[number]=window[names[1]];}
+function loadDataScript(path,name){
+ if(window[name])return Promise.resolve();
+ return new Promise((resolve,reject)=>{const script=document.createElement('script');const timer=setTimeout(()=>{script.remove();reject(Error('Chapter download timed out'));},30000);script.src=path+'?v='+dataVersion;script.onload=()=>{clearTimeout(timer);if(window[name])resolve();else{script.remove();reject(Error('Chapter data missing'));}};script.onerror=()=>{clearTimeout(timer);script.remove();reject(Error('Chapter download failed'));};document.head.append(script);});
+}
+async function loadChapter(number){
+ if(books[number]&&audios[number])return;
+ if(!availableChapters.has(number)||!chapterGlobals[number])throw Error('Unknown chapter');
+ if(!chapterLoads.has(number))chapterLoads.set(number,(async()=>{const names=chapterGlobals[number];await Promise.all([loadDataScript(number===1?'book.js':'chapter-'+number+'.js',names[0]),loadDataScript(number===1?'audio.js':'audio-'+number+'.js',names[1])]);const book=window[names[0]],audio=window[names[1]];if(!book?.scenes?.length||!audio?.scenes||!Array.isArray(book.quizzes))throw Error('Invalid chapter data');books[number]=book;audios[number]=audio;})().catch(error=>{chapterLoads.delete(number);throw error;}));
+ await chapterLoads.get(number);
+}
+let currentChapter=0;
+try{const saved=localStorage.getItem('twilight-mn-current-chapter');if(saved!==null&&availableChapters.has(Number(saved)))currentChapter=Number(saved);}catch{}
+async function initialChapter(){
+ const selector=$('#chapter'),level=$('#level');selector.value=String(currentChapter);level.disabled=true;
+ return new Promise(resolve=>{
+  let loading=false;const retry=document.createElement('button');retry.type='button';retry.className='primary';retry.textContent='Повторить загрузку';retry.hidden=true;
+  const attempt=async()=>{
+   if(loading)return;loading=true;const number=Number(selector.value);selector.disabled=true;retry.disabled=true;$('#position').textContent='Загружаю главу…';
+   try{await loadChapter(number);selector.removeEventListener('change',attempt);retry.remove();selector.disabled=false;level.disabled=false;resolve(number);}
+   catch{$('#position').textContent='Глава не загрузилась';$('#text').textContent='Не удалось загрузить главу. Проверьте подключение, повторите попытку или выберите другую главу.';$('#text').append(document.createElement('br'),retry);retry.hidden=false;retry.disabled=false;selector.disabled=false;loading=false;}
+  };
+  retry.addEventListener('click',attempt);selector.addEventListener('change',attempt);attempt();
+ });
+}
+currentChapter=await initialChapter();
 let B=books[currentChapter],A=audios[currentChapter],KEY=B.id;
 const esc=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fresh=()=>({book:B.id,version:1,scene:0,level:0,read:[],saved:[],reviews:{},quiz:[{}, {}, {}],quizIndex:[0,0,0],colors:false,discoveries:{},savedContexts:{}});
@@ -32,7 +58,9 @@ function download(name,body,type='application/json'){const u=URL.createObjectURL
 function stop(){player.pause();sentenceEnd=null;player.currentTime=0;$('#listen').textContent='▶ Слушать отрывок';}
 function changeScene(n){stop();state.scene=Math.max(0,Math.min(B.scenes.length-1,n));translation=false;grammar=false;help=null;selected='';selectedIndex=null;save();setView('read');renderRead();window.scrollTo({top:0,behavior:'auto'});notifyParent(0);}
 function setView(v){view=v;for(const s of ['read','words','story','quiz'])$('#'+s+'-view').hidden=s!==v;document.querySelectorAll('nav [data-view]').forEach(b=>{if(b.dataset.view===v)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});if(v!=='read')stop();if(v==='words')renderWords();if(v==='story')renderStory();if(v==='quiz')renderQuiz();updateProgress();}
-function updateProgress(){$('#chapter').value=String(currentChapter);$('#progress').max=B.scenes.length;$('#story-view h2').textContent='Хроника главы '+B.chapter;$('#quiz-view h2').textContent='Итог главы '+B.chapter;$('#words-view .section-heading p').textContent='Ваши карточки из главы '+B.chapter+'. Повторяйте по памяти, затем открывайте перевод.';$('#read-count').textContent=`Прочитано ${state.read.length} / ${B.scenes.length} эпизодов · ${Math.round(state.read.length/B.scenes.length*100)}%`;$('#progress').value=state.read.length;$('#word-count').textContent=state.saved.length;$('#level').value=state.level;}
+const sectionName=()=>B.chapter===0?'предисловия':B.chapter===25?'эпилога':'главы '+B.chapter;
+const sectionTitle=()=>B.chapter===0?'Предисловие':B.chapter===25?'Эпилог':'Глава '+B.chapter;
+function updateProgress(){$('#chapter').value=String(currentChapter);$('#progress').max=B.scenes.length;$('#story-view h2').textContent='Хроника '+sectionName();$('#quiz-view h2').textContent='Итог '+sectionName();$('#words-view .section-heading p').textContent='Ваши карточки из '+sectionName()+'. Повторяйте по памяти, затем открывайте перевод.';$('#read-count').textContent=`Прочитано ${state.read.length} / ${B.scenes.length} эпизодов · ${Math.round(state.read.length/B.scenes.length*100)}%`;$('#progress').value=state.read.length;$('#word-count').textContent=state.saved.length;$('#level').value=state.level;}
 function wordForm(surface,en){
  let html=esc(surface),parts=en.morph;
  if(parts?.length&&parts.map(p=>p.text).join('').toLocaleLowerCase()===surface.toLocaleLowerCase()){
@@ -105,7 +133,7 @@ function renderAudio(){const c=clip();$('#listen').disabled=!c;$('#audio-stop').
 function renderRead(){const s=B.scenes[state.scene];$('#art').src=B.assets[s.art];$('#art').alt='Иллюстрация сцены «'+s.title+'»';$('#location').textContent=s.location;$('#title').textContent=s.title;$('#position').textContent=`Эпизод ${state.scene+1} из ${B.scenes.length}`;$('#page-number').textContent=`PDF · стр. ${s.page}${s.page!==s.endPage?'–'+s.endPage:''}`;$('#level-note').textContent='';renderText();renderHelp();
  const cs=B.corrections.filter(c=>c.scene===state.scene);$('#corrections').innerHTML=cs.length?'<ul>'+cs.map(c=>`<li><span lang="mn">${esc(c.before)}</span> → <strong lang="mn">${esc(c.after)}</strong></li>`).join('')+'</ul>':'<p>В этом эпизоде исправления не понадобились.</p>';$('#source-text').textContent=s.sourceText;
  $('#previous').disabled=state.scene===0;$('#next').textContent=state.scene===B.scenes.length-1?'Отметить финал главы ✓':'Продолжить историю →';
- $('#chapter-end').hidden=state.scene!==B.scenes.length-1;$('#chapter-end').innerHTML=state.read.length===B.scenes.length?`<h3>Глава ${B.chapter} прочитана</h3><p>Вы прошли все эпизоды. Теперь можно проверить понимание и повторить сохранённые слова.</p><button class="primary" data-view="quiz">Пройти итоговые задания</button>`:`<h3>Конец главы ${B.chapter}</h3><p>Прочитано ${state.read.length} из ${B.scenes.length} эпизодов. Найдите оставшиеся в хронике или отметьте этот эпизод после чтения.</p><button data-view="story">Открыть хронику</button>`;$('#scene-progress').textContent='Глава '+B.chapter+' · прочитано '+Math.round(state.read.length/B.scenes.length*100)+'%';renderAudio();updateProgress();
+ $('#chapter-end').hidden=state.scene!==B.scenes.length-1;$('#chapter-end').innerHTML=state.read.length===B.scenes.length?`<h3>${sectionTitle()} прочитан${B.chapter===0?'о':B.chapter===25?'':'а'}</h3><p>Вы прошли все эпизоды. Теперь можно проверить понимание и повторить сохранённые слова.</p><button class="primary" data-view="quiz">Пройти итоговые задания</button>`:`<h3>Конец ${sectionName()}</h3><p>Прочитано ${state.read.length} из ${B.scenes.length} эпизодов. Найдите оставшиеся в хронике или отметьте этот эпизод после чтения.</p><button data-view="story">Открыть хронику</button>`;$('#scene-progress').textContent=sectionTitle()+' · прочитано '+Math.round(state.read.length/B.scenes.length*100)+'%';renderAudio();updateProgress();
 }
 function savedEntry(k){const c=state.savedContexts[k],s=c&&B.scenes.find(s=>s.id===c.scene);if(!s)return B.lex[k];const i=contextWordIndex(k,c);return {...B.lex[k],...(s.wordExplanations?.[c.level]?.[i]||{})};}
 function renderWords(){const list=state.saved;$('#saved-words').innerHTML=list.length?list.map(k=>{const w=savedEntry(k),r=state.reviews[k],c=state.savedContexts[k],s=c&&B.scenes.find(s=>s.id===c.scene);return `<div class="saved-row"><div><button class="quiet word-name" data-word="${esc(k)}" lang="mn">${esc(k)}</button><span>${esc(w.ru)}</span>${s?`<details class="saved-context"><summary>В тексте · эпизод ${B.scenes.indexOf(s)+1}</summary><blockquote lang="mn">${esc(s.text[c.level])}</blockquote></details>`:''}<small>${r&&r.due>Date.now()?'Следующее повторение: '+new Date(r.due).toLocaleDateString('ru-RU'):'Готово к повторению'}</small></div><button class="quiet" data-remove="${esc(k)}" aria-label="Убрать ${esc(k)}">Убрать</button></div>`;}).join(''):'<p style="margin-top:24px">Здесь появятся слова, которые вы добавите из истории. Откройте карточку и нажмите «Добавить в мои слова».</p>';$('#review-start').disabled=!list.length;updateProgress();}
@@ -132,9 +160,11 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||
  else if(id==='quiz-prev'||id==='quiz-next'){state.quizIndex[state.level]+=id==='quiz-next'?1:-1;save();renderQuiz();}
  else if(id==='quiz-reset'){state.quiz[state.level]={};state.quizIndex[state.level]=0;save();renderQuiz();}
 });
-function changeChapter(number){
- if(!books[number]||number===currentChapter)return;
- save();stop();currentChapter=number;B=books[number];A=audios[number];KEY=B.id;ids=new Set(B.scenes.map(s=>s.id));state=fresh();
+async function changeChapter(number){
+ if(!availableChapters.has(number)||number===currentChapter)return;
+ save();stop();$('#chapter').disabled=true;
+ try{await loadChapter(number);}catch{$('#chapter').value=String(currentChapter);notice('Не удалось загрузить главу. Попробуйте ещё раз.');$('#chapter').disabled=false;return;}
+ $('#chapter').disabled=false;currentChapter=number;B=books[number];A=audios[number];KEY=B.id;ids=new Set(B.scenes.map(s=>s.id));state=fresh();
  try{const previous=localStorage.getItem(KEY);if(previous)state=validate(JSON.parse(previous));localStorage.setItem('twilight-mn-current-chapter',String(number));}catch{notice('Не удалось восстановить сохранение этой главы. Можно загрузить копию прогресса.');}
  translation=false;grammar=false;help=null;selected='';selectedIndex=null;reviewQueue=[];reviewIndex=0;reviewRevealed=false;$('#review').innerHTML='';$('#saved-words').hidden=false;$('#search').value='';$('#transfer-status').textContent='';
  setView('read');renderRead();window.scrollTo({top:0,behavior:'auto'});notifyParent(0);
