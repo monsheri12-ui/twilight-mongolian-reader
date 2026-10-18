@@ -1,19 +1,92 @@
 (async () => {
 'use strict';
 const $=s=>document.querySelector(s),player=$('#player');
+function createLoadingController(){
+ const panel=$('#reader-loading');
+ if(!panel)return {start(){},update(){},ready(){},error(){}};
+ const title=$('#loading-title'),detail=$('#loading-detail'),meter=$('#loading-meter'),progress=$('#loading-progress'),percent=$('#loading-percent'),retry=$('#loading-retry'),back=$('#loading-back'),choice=$('#loading-choice'),chapter=$('#loading-chapter');
+ const areas=[$('.header'),$('main')].filter(Boolean);let retryAction,backAction,chooseAction,previousFocus=null,lastPercent=-1,turn=0;
+ retry.onclick=null;retry.addEventListener('click',()=>retryAction?.());back.addEventListener('click',()=>backAction?.());chapter.addEventListener('change',()=>chooseAction?.(Number(chapter.value)));
+ function busy(value){for(const area of areas)area.inert=value;$('main')?.setAttribute('aria-busy',String(value));document.body.classList.toggle('is-loading',value);}
+ return {
+  start(number){
+   if(panel.hidden)previousFocus=document.activeElement;
+   panel.hidden=false;panel.dataset.state='loading';panel.dataset.chapter=String(number);panel.dataset.loaded='0';panel.dataset.total='0';busy(true);
+   title.textContent=number===0?'Открываем предисловие':number===25?'Открываем эпилог':'Открываем главу '+number;
+   detail.textContent='Загружаем текст и пояснения';meter.hidden=false;progress.removeAttribute('value');percent.textContent='';lastPercent=-1;
+   retry.hidden=true;back.hidden=true;choice.hidden=true;retryAction=null;backAction=null;chooseAction=null;return ++turn;
+  },
+  update({loaded,total},token=turn){
+   if(token!==turn||panel.dataset.state!=='loading')return;
+   panel.dataset.loaded=String(loaded);panel.dataset.total=String(total);
+   if(!total)return;
+   const value=Math.min(99,Math.floor(loaded/total*100));
+   if(value===lastPercent)return;lastPercent=value;progress.value=value;percent.textContent=value+'%';
+   progress.setAttribute('aria-valuetext',value+'%');if(loaded>=total)detail.textContent='Открываем страницу';
+  },
+  ready(){
+   progress.value=100;progress.setAttribute('aria-valuetext','100%');percent.textContent='100%';panel.dataset.state='ready';panel.hidden=true;busy(false);
+   if(previousFocus?.isConnected&&!panel.contains(previousFocus))previousFocus.focus({preventScroll:true});
+   else if(panel.contains(document.activeElement))$('#chapter')?.focus({preventScroll:true});previousFocus=null;
+  },
+  error(message,actions){
+   panel.hidden=false;panel.dataset.state='error';title.textContent='Не удалось открыть главу';detail.textContent=message;meter.hidden=true;
+   $('main')?.setAttribute('aria-busy','false');retryAction=actions.retry;backAction=actions.back;chooseAction=actions.choose;
+   retry.hidden=false;back.hidden=!backAction;choice.hidden=!chooseAction;
+   if(chooseAction){chapter.replaceChildren(...[...$('#chapter').options].map(option=>option.cloneNode(true)));chapter.value=panel.dataset.chapter;}
+   retry.focus({preventScroll:true});return true;
+  }
+ };
+}
+const loadingUI=createLoadingController();
+
+document.documentElement.dataset.uiVersion='20261019-1';
+const chapterFileSizes={"chapter-0.js":92368,"audio-0.js":13619,"book.js":5227700,"audio.js":419353,"chapter-2.js":2208612,"audio-2.js":395199,"chapter-3.js":1396543,"audio-3.js":239813,"chapter-4.js":1625976,"audio-4.js":294241,"chapter-5.js":1962544,"audio-5.js":396688,"chapter-6.js":2380236,"audio-6.js":300305,"chapter-7.js":2068135,"audio-7.js":341863,"chapter-8.js":2097004,"audio-8.js":429377,"chapter-9.js":1520241,"audio-9.js":296188,"chapter-10.js":1889607,"audio-10.js":372908,"chapter-11.js":1599484,"audio-11.js":289234,"chapter-12.js":2043584,"audio-12.js":415209,"chapter-13.js":2436884,"audio-13.js":453042,"chapter-14.js":2184306,"audio-14.js":463565,"chapter-15.js":1803656,"audio-15.js":404686,"chapter-16.js":1464797,"audio-16.js":245710,"chapter-17.js":2684008,"audio-17.js":486875,"chapter-18.js":1318847,"audio-18.js":254091,"chapter-19.js":1569377,"audio-19.js":259586,"chapter-20.js":1605520,"audio-20.js":326279,"chapter-21.js":1159777,"audio-21.js":169966,"chapter-22.js":1858878,"audio-22.js":350792,"chapter-23.js":594498,"audio-23.js":96361,"chapter-24.js":1744335,"audio-24.js":395065,"chapter-25.js":1572397,"audio-25.js":322318};
 const chapterGlobals={"1":["TWILIGHT_BOOK","TWILIGHT_AUDIO"],"2":["TWILIGHT_CHAPTER_TWO","TWILIGHT_AUDIO_TWO"],"3":["TWILIGHT_CHAPTER_THREE","TWILIGHT_AUDIO_THREE"],"4":["TWILIGHT_CHAPTER_FOUR","TWILIGHT_AUDIO_FOUR"],"5":["TWILIGHT_CHAPTER_FIVE","TWILIGHT_AUDIO_FIVE"],"6":["TWILIGHT_CHAPTER_SIX","TWILIGHT_AUDIO_SIX"],"7":["TWILIGHT_CHAPTER_SEVEN","TWILIGHT_AUDIO_SEVEN"],"8":["TWILIGHT_CHAPTER_EIGHT","TWILIGHT_AUDIO_EIGHT"],"9":["TWILIGHT_CHAPTER_NINE","TWILIGHT_AUDIO_NINE"],"10":["TWILIGHT_CHAPTER_TEN","TWILIGHT_AUDIO_TEN"],"11":["TWILIGHT_CHAPTER_ELEVEN","TWILIGHT_AUDIO_ELEVEN"],"12":["TWILIGHT_CHAPTER_TWELVE","TWILIGHT_AUDIO_TWELVE"],"13":["TWILIGHT_CHAPTER_THIRTEEN","TWILIGHT_AUDIO_THIRTEEN"],"0":["TWILIGHT_CHAPTER_0","TWILIGHT_AUDIO_0"],"14":["TWILIGHT_CHAPTER_14","TWILIGHT_AUDIO_14"],"15":["TWILIGHT_CHAPTER_15","TWILIGHT_AUDIO_15"],"16":["TWILIGHT_CHAPTER_16","TWILIGHT_AUDIO_16"],"17":["TWILIGHT_CHAPTER_17","TWILIGHT_AUDIO_17"],"18":["TWILIGHT_CHAPTER_18","TWILIGHT_AUDIO_18"],"19":["TWILIGHT_CHAPTER_19","TWILIGHT_AUDIO_19"],"20":["TWILIGHT_CHAPTER_20","TWILIGHT_AUDIO_20"],"21":["TWILIGHT_CHAPTER_21","TWILIGHT_AUDIO_21"],"22":["TWILIGHT_CHAPTER_22","TWILIGHT_AUDIO_22"],"23":["TWILIGHT_CHAPTER_23","TWILIGHT_AUDIO_23"],"24":["TWILIGHT_CHAPTER_24","TWILIGHT_AUDIO_24"],"25":["TWILIGHT_CHAPTER_25","TWILIGHT_AUDIO_25"]},books={},audios={},chapterLoads=new Map(),dataVersion='20261018-7';
 const availableChapters=new Set([...$('#chapter').options].map(option=>Number(option.value)));
 for(const [number,names]of Object.entries(chapterGlobals)){if(window[names[0]])books[number]=window[names[0]];if(window[names[1]])audios[number]=window[names[1]];}
-function loadDataScript(path,name){
- if(window[name])return Promise.resolve();
- return new Promise((resolve,reject)=>{const script=document.createElement('script');const timer=setTimeout(()=>{script.remove();reject(Error('Chapter download timed out'));},30000);script.src=path+'?v='+dataVersion;script.onload=()=>{clearTimeout(timer);if(window[name])resolve();else{script.remove();reject(Error('Chapter data missing'));}};script.onerror=()=>{clearTimeout(timer);script.remove();reject(Error('Chapter download failed'));};document.head.append(script);});
+function loadDataScript(path,name,onBytes=()=>{}){
+ const size=chapterFileSizes[path]||0;
+ if(window[name]){onBytes(size);return Promise.resolve();}
+ if(location.protocol==='file:'||typeof fetch!=='function'){
+  return new Promise((resolve,reject)=>{const script=document.createElement('script');const timer=setTimeout(()=>{script.remove();reject(Error('Chapter download timed out'));},45000);script.src=path+'?v='+dataVersion;script.onload=()=>{clearTimeout(timer);if(window[name]){onBytes(size);resolve();}else{script.remove();reject(Error('Chapter data missing'));}};script.onerror=()=>{clearTimeout(timer);script.remove();reject(Error('Chapter download failed'));};document.head.append(script);});
+ }
+ return fetchChapterData(path,name,onBytes);
 }
-async function loadChapter(number){
- if(books[number]&&audios[number])return;
+async function fetchChapterData(path,name,onBytes){
+ const controller=new AbortController();let timer;
+ const touch=()=>{clearTimeout(timer);timer=setTimeout(()=>controller.abort(),45000);};touch();
+ try{
+  const response=await fetch(path+'?v='+dataVersion,{signal:controller.signal});
+  if(!response.ok)throw Error('Chapter download failed: '+response.status);
+  let text='';
+  if(response.body?.getReader&&typeof TextDecoder!=='undefined'){
+   const reader=response.body.getReader(),decoder=new TextDecoder();let received=0;
+   while(true){const {value,done}=await reader.read();if(done)break;touch();received+=value.byteLength;onBytes(received);text+=decoder.decode(value,{stream:true});}
+   text+=decoder.decode();
+  }else{text=await response.text();onBytes(new TextEncoder().encode(text).byteLength);}
+  const prefix='window.'+name+'=',source=text.trim();
+  if(!source.startsWith(prefix)||!source.endsWith(';'))throw Error('Invalid chapter data wrapper');
+  const data=JSON.parse(source.slice(prefix.length,-1));
+  window[name]=data;
+ }finally{clearTimeout(timer);}
+}
+async function loadChapter(number,onProgress=()=>{}){
  if(!availableChapters.has(number)||!chapterGlobals[number])throw Error('Unknown chapter');
- if(!chapterLoads.has(number))chapterLoads.set(number,(async()=>{const names=chapterGlobals[number];await Promise.all([loadDataScript(number===1?'book.js':'chapter-'+number+'.js',names[0]),loadDataScript(number===1?'audio.js':'audio-'+number+'.js',names[1])]);const book=window[names[0]],audio=window[names[1]];if(!book?.scenes?.length||!audio?.scenes||!Array.isArray(book.quizzes))throw Error('Invalid chapter data');books[number]=book;audios[number]=audio;})().catch(error=>{chapterLoads.delete(number);throw error;}));
+ const paths=number===1?['book.js','audio.js']:['chapter-'+number+'.js','audio-'+number+'.js'];
+ const sizes=paths.map(path=>chapterFileSizes[path]||0),received=[0,0],total=sizes.reduce((a,b)=>a+b,0);
+ const report=(index,bytes)=>{received[index]=Math.min(bytes,sizes[index]);onProgress({loaded:received[0]+received[1],total});};
+ if(books[number]&&audios[number]){onProgress({loaded:total,total});return;}
+ if(!chapterLoads.has(number))chapterLoads.set(number,(async()=>{
+  const names=chapterGlobals[number];onProgress({loaded:0,total});
+  await Promise.all(paths.map((path,index)=>loadDataScript(path,names[index],bytes=>report(index,bytes))));
+  const book=window[names[0]],audio=window[names[1]];
+  if(!book?.scenes?.length||!audio?.scenes||!Array.isArray(book.quizzes))throw Error('Invalid chapter data');
+  books[number]=book;audios[number]=audio;
+ })().catch(error=>{chapterLoads.delete(number);throw error;}));
  await chapterLoads.get(number);
 }
+
 let currentChapter=0;
 try{const saved=localStorage.getItem('twilight-mn-current-chapter');if(saved!==null&&availableChapters.has(Number(saved)))currentChapter=Number(saved);}catch{}
 async function initialChapter(){
@@ -21,9 +94,11 @@ async function initialChapter(){
  return new Promise(resolve=>{
   let loading=false;const retry=document.createElement('button');retry.type='button';retry.className='primary';retry.textContent='Повторить загрузку';retry.hidden=true;
   const attempt=async()=>{
-   if(loading)return;loading=true;const number=Number(selector.value);selector.disabled=true;retry.disabled=true;$('#position').textContent='Загружаю главу…';
-   try{await loadChapter(number);selector.removeEventListener('change',attempt);retry.remove();selector.disabled=false;level.disabled=false;resolve(number);}
-   catch{$('#position').textContent='Глава не загрузилась';$('#text').textContent='Не удалось загрузить главу. Проверьте подключение, повторите попытку или выберите другую главу.';$('#text').append(document.createElement('br'),retry);retry.hidden=false;retry.disabled=false;selector.disabled=false;loading=false;}
+   if(loading)return;loading=true;const number=Number(selector.value),token=loadingUI.start(number);selector.disabled=true;retry.disabled=true;$('#position').textContent='Загружаем главу…';
+   try{await loadChapter(number,p=>loadingUI.update(p,token));selector.removeEventListener('change',attempt);retry.remove();selector.disabled=false;level.disabled=false;resolve(number);}
+   catch{loading=false;selector.disabled=false;retry.disabled=false;const message='Проверьте подключение и попробуйте ещё раз. Можно открыть другую главу.';
+    if(!loadingUI.error(message,{retry:attempt,choose:n=>{selector.value=String(n);attempt();}})){$('#position').textContent='Глава не загрузилась';$('#text').textContent=message;$('#text').append(document.createElement('br'),retry);retry.hidden=false;}
+   }
   };
   retry.addEventListener('click',attempt);selector.addEventListener('change',attempt);attempt();
  });
@@ -55,7 +130,7 @@ try{const s=localStorage.getItem(KEY);if(s)state=validate(JSON.parse(s));}catch(
 function save(){try{localStorage.setItem(KEY,JSON.stringify(state));}catch{notice('Браузер не сохраняет данные. Скачайте прогресс перед закрытием.');}}
 function notice(msg){const el=$('#status');el.textContent=msg;el.classList.add('visible');clearTimeout(noticeTimer);noticeTimer=setTimeout(()=>el.classList.remove('visible'),4500);}
 function download(name,body,type='application/json'){const u=URL.createObjectURL(new Blob([body],{type})),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);}
-function stop(){player.pause();sentenceEnd=null;player.currentTime=0;$('#listen').textContent='▶ Слушать отрывок';}
+function stop(){audioRequested=false;setAudioLoading(false);player.pause();sentenceEnd=null;player.currentTime=0;$('#listen').textContent='▶ Слушать отрывок';}
 function changeScene(n){stop();state.scene=Math.max(0,Math.min(B.scenes.length-1,n));translation=false;grammar=false;help=null;selected='';selectedIndex=null;save();setView('read');renderRead();window.scrollTo({top:0,behavior:'auto'});notifyParent(0);}
 function setView(v){view=v;for(const s of ['read','words','story','quiz'])$('#'+s+'-view').hidden=s!==v;document.querySelectorAll('nav [data-view]').forEach(b=>{if(b.dataset.view===v)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});if(v!=='read')stop();if(v==='words')renderWords();if(v==='story')renderStory();if(v==='quiz')renderQuiz();updateProgress();}
 const sectionName=()=>B.chapter===0?'предисловия':B.chapter===25?'эпилога':'главы '+B.chapter;
@@ -130,7 +205,9 @@ function addWord(k,index=null){if(!Object.hasOwn(B.lex,k)||state.saved.includes(
 
 function clip(){return A?.clips?.[A.scenes?.[B.scenes[state.scene].id]?.[state.level]];}
 function renderAudio(){const c=clip();$('#listen').disabled=!c;$('#audio-stop').disabled=!c;$('#sentence-audio').hidden=!c?.cues?.length;$('#sentence-audio summary').textContent='Слушать отдельные предложения ('+(c?.cues?.length||0)+')';$('#audio-state').textContent=c?'':'Озвучка ещё не подключена';$('#audio-about').hidden=!c;if(c){if(player.getAttribute('src')!==c.src)player.src=c.src;player.playbackRate=Number($('#speed').value);$('#audio-sentences').innerHTML=c.cues.map((q,i)=>`<button type="button" data-audio-sentence="${i}">▶ ${i+1}. ${esc(q.text)}</button>`).join('');}else player.removeAttribute('src');}
-function renderRead(){const s=B.scenes[state.scene];$('#art').src=B.assets[s.art];$('#art').alt='Иллюстрация сцены «'+s.title+'»';$('#location').textContent=s.location;$('#title').textContent=s.title;$('#position').textContent=`Эпизод ${state.scene+1} из ${B.scenes.length}`;$('#page-number').textContent='';$('#level-note').textContent='';renderText();renderHelp();
+function setImageLoading(busy,failed=false){const hint=$('#image-loading');if(!hint)return;const art=$('#art');art.setAttribute('aria-busy',String(busy));hint.hidden=!busy&&!failed;hint.classList.toggle('is-error',failed);hint.querySelector('.inline-spinner').hidden=failed;hint.querySelector('span:last-child').textContent=failed?'Иллюстрация не загрузилась. Текст можно читать.':'Загружаем иллюстрацию';}
+$('#art').addEventListener('load',()=>setImageLoading(false));$('#art').addEventListener('error',()=>setImageLoading(false,true));
+function renderRead(){const s=B.scenes[state.scene];$('#art').src=B.assets[s.art];$('#art').alt='Иллюстрация сцены «'+s.title+'»';setImageLoading(!$('#art').complete||!$('#art').naturalWidth);$('#location').textContent=s.location;$('#title').textContent=s.title;$('#position').textContent=`Эпизод ${state.scene+1} из ${B.scenes.length}`;$('#page-number').textContent='';$('#level-note').textContent='';renderText();renderHelp();
  $('#previous').disabled=state.scene===0;$('#next').textContent=state.scene===B.scenes.length-1?'Отметить финал главы ✓':'Продолжить историю →';
  $('#chapter-end').hidden=state.scene!==B.scenes.length-1;$('#chapter-end').innerHTML=state.read.length===B.scenes.length?`<h3>${sectionTitle()} прочитан${B.chapter===0?'о':B.chapter===25?'':'а'}</h3><p>Вы прошли все эпизоды. Теперь можно проверить понимание и повторить сохранённые слова.</p><button class="primary" data-view="quiz">Пройти итоговые задания</button>`:`<h3>Конец ${sectionName()}</h3><p>Прочитано ${state.read.length} из ${B.scenes.length} эпизодов. Найдите оставшиеся в хронике или отметьте этот эпизод после чтения.</p><button data-view="story">Открыть хронику</button>`;$('#scene-progress').textContent=sectionTitle()+' · прочитано '+Math.round(state.read.length/B.scenes.length*100)+'%';renderAudio();updateProgress();
 }
@@ -139,8 +216,15 @@ function renderWords(){const list=state.saved;$('#saved-words').innerHTML=list.l
 function renderReview(){const el=$('#review');$('#saved-words').hidden=reviewQueue.length>0&&reviewIndex<reviewQueue.length;if(!reviewQueue.length){el.innerHTML='';return;}if(reviewIndex>=reviewQueue.length){el.innerHTML='<div class="review-card"><h3>Повторение завершено</h3><p>Новые сроки сохранены. Слова, которые забылись, появятся раньше.</p></div>';return;}const k=reviewQueue[reviewIndex],w=savedEntry(k);el.innerHTML=`<div class="review-card"><small>Карточка ${reviewIndex+1} из ${reviewQueue.length}</small><p class="mn" lang="mn">${esc(k)}</p>${reviewRevealed?`<p>${esc(w.ru)}</p><p class="muted">${esc(w.note)}</p><div><button data-rating="0">Не вспомнил</button><button data-rating="1">С трудом</button><button data-rating="2">Вспомнил</button></div>`:'<button id="review-show" class="primary">Показать перевод</button>'}</div>`;}
 function renderStory(){const q=$('#search').value.toLocaleLowerCase().trim(),num=/^\d+$/.test(q)?Number(q):null;const items=B.scenes.map((s,i)=>({s,i})).filter(({s,i})=>!q||(num?i+1===num:([s.title,...s.text,...s.ru].join(' ').toLocaleLowerCase().includes(q))));$('#search-count').textContent='Найдено эпизодов: '+items.length;$('#story-results').innerHTML=items.map(({s,i})=>`<button class="story-row" data-go="${i}"><span><small>${i+1}. ${esc(s.location)} · ${state.read.includes(s.id)?'Прочитано ✓':'Ещё не прочитано'}</small><strong>${esc(s.title)}</strong><span class="preview" lang="mn">${esc(s.text[2].slice(0,165))}${s.text[2].length>165?'…':''}</span></span><span aria-hidden="true">→</span></button>`).join('')||'<p>Ничего не найдено. Попробуйте другую форму слова.</p>';}
 function renderQuiz(){const l=state.level,qs=B.quizzes[l],i=state.quizIndex[l],q=qs[i],a=state.quiz[l][q.id],checked=qs.filter(q=>state.quiz[l][q.id]?.checked).length,score=qs.filter(q=>state.quiz[l][q.id]?.checked&&state.quiz[l][q.id].choice===q.correct).length;$('#quiz-description').textContent=[ 'Начальный уровень: найдите явные детали истории.','Средний уровень: разберите формы и конструкции в контексте.','Продвинутый уровень: различайте наблюдение, предположение и вывод рассказчицы.'][l];$('#quiz-progress').textContent=`${B.levels[l]} · вопрос ${i+1} из ${qs.length} · проверено ${checked}, верно ${score}`;$('#quiz-content').innerHTML=`<h3>${esc(q.prompt)}</h3><p><small>Связан с эпизодом ${q.scene+1}. Ответ и объяснение появятся после проверки.</small></p><fieldset class="quiz-options" style="border:0;padding:0" aria-label="Варианты ответа">${q.options.map((o,n)=>`<label class="quiz-option"><input type="radio" name="answer" value="${n}" ${a?.choice===n?'checked':''} ${a?.checked?'disabled':''}><span>${esc(o)}</span></label>`).join('')}</fieldset>${a?.checked?`<div class="quiz-result ${a.choice===q.correct?'':'wrong'}"><strong>${a.choice===q.correct?'Верно':'Попробуйте разобраться'}</strong><p>Ответ: ${esc(q.options[q.correct])}</p><p>${esc(q.explain)}</p><button class="quiet" data-go="${q.scene}">Вернуться к эпизоду ${q.scene+1}</button></div>`:''}<div class="quiz-tools">${a?.checked?'<button id="quiz-retry" class="quiet">Попробовать снова</button>':'<button id="quiz-check" class="primary">Проверить ответ</button>'}<button id="quiz-prev" class="quiet" ${i===0?'disabled':''}>← Назад</button><button id="quiz-next" class="quiet" ${i===qs.length-1?'disabled':''}>Следующий →</button></div>${checked===qs.length?`<div class="quiz-result"><h3>Итог: ${score} / ${qs.length}</h3><p>${score===qs.length?'Все задания этого уровня выполнены верно.':'Вернитесь к вопросам, где были ошибки. Каждый можно повторить.'}</p><button id="quiz-reset" class="quiet">Пройти этот уровень заново</button></div>`:''}`;}
-async function play(start=0,end=null){const c=clip();if(!c)return;if(start===null&&!player.paused){player.pause();return;}if(start===null)start=player.currentTime;player.currentTime=start;sentenceEnd=end;try{await player.play();}catch{notice('Браузер не начал воспроизведение. Нажмите «Слушать» ещё раз.');}}
-player.addEventListener('play',()=>{$('#listen').textContent='Ⅱ Пауза';});player.addEventListener('pause',()=>{$('#listen').textContent='▶ Слушать отрывок';});player.addEventListener('timeupdate',()=>{if(sentenceEnd!==null&&player.currentTime>=sentenceEnd){player.pause();sentenceEnd=null;}});player.addEventListener('error',()=>{if(clip())$('#audio-state').textContent='Не удалось воспроизвести запись. Попробуйте открыть тренажёр заново.';});
+let audioRequested=false;
+function setAudioLoading(value){const el=$('#audio-state');if(value){el.dataset.loading='true';el.textContent='Загружаем запись…';}else if(el.dataset.loading==='true'){delete el.dataset.loading;el.textContent='';}}
+async function play(start=0,end=null){const c=clip();if(!c)return;if(start===null&&!player.paused){player.pause();return;}if(start===null)start=player.currentTime;player.currentTime=start;sentenceEnd=end;audioRequested=true;setAudioLoading(player.readyState<3);try{await player.play();setAudioLoading(false);}catch{audioRequested=false;setAudioLoading(false);notice('Браузер не начал воспроизведение. Нажмите «Слушать» ещё раз.');}}
+player.addEventListener('play',()=>{$('#listen').textContent='Ⅱ Пауза';});
+player.addEventListener('playing',()=>setAudioLoading(false));player.addEventListener('canplay',()=>setAudioLoading(false));
+player.addEventListener('waiting',()=>{if(audioRequested&&!player.paused)setAudioLoading(true);});
+player.addEventListener('pause',()=>{audioRequested=false;setAudioLoading(false);$('#listen').textContent='▶ Слушать отрывок';});
+player.addEventListener('timeupdate',()=>{if(sentenceEnd!==null&&player.currentTime>=sentenceEnd){player.pause();sentenceEnd=null;}});
+player.addEventListener('error',()=>{audioRequested=false;setAudioLoading(false);if(clip())$('#audio-state').textContent='Не удалось воспроизвести запись. Попробуйте открыть тренажёр заново.';});
 document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||b.disabled)return;const id=b.id;
  if(b.dataset.view){setView(b.dataset.view);return;}if(b.dataset.help){help=b.dataset.help;selected='';selectedIndex=null;renderText();renderHelp();return;}if(b.dataset.save){addWord(b.dataset.save);return;}if(b.dataset.word){openWord(b.dataset.word,b.dataset.wordIndex===undefined?null:+b.dataset.wordIndex);return;}if(b.dataset.go!==undefined){changeScene(+b.dataset.go);return;}if(b.dataset.remove){state.saved=state.saved.filter(k=>k!==b.dataset.remove);delete state.reviews[b.dataset.remove];delete state.savedContexts[b.dataset.remove];save();renderWords();return;}
  if(b.dataset.audioSentence!==undefined){const q=clip()?.cues?.[+b.dataset.audioSentence];if(q)play(q.start,q.end);return;}
@@ -161,17 +245,17 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||
 });
 async function changeChapter(number){
  if(!availableChapters.has(number)||number===currentChapter)return;
- save();stop();$('#chapter').disabled=true;
- try{await loadChapter(number);}catch{$('#chapter').value=String(currentChapter);notice('Не удалось загрузить главу. Попробуйте ещё раз.');$('#chapter').disabled=false;return;}
- $('#chapter').disabled=false;currentChapter=number;B=books[number];A=audios[number];KEY=B.id;ids=new Set(B.scenes.map(s=>s.id));state=fresh();
+ save();stop();$('#chapter').disabled=true;$('#level').disabled=true;const token=books[number]&&audios[number]?null:loadingUI.start(number);
+ try{await loadChapter(number,p=>{if(token!==null)loadingUI.update(p,token);});}catch{$('#chapter').value=String(currentChapter);$('#chapter').disabled=false;$('#level').disabled=false;if(!loadingUI.error('Проверьте подключение и повторите попытку. Открытая глава и ваш прогресс сохранены.',{retry:()=>changeChapter(number),back:()=>loadingUI.ready()}))notice('Не удалось загрузить главу. Попробуйте ещё раз.');return;}
+ $('#chapter').disabled=false;$('#level').disabled=false;currentChapter=number;B=books[number];A=audios[number];KEY=B.id;ids=new Set(B.scenes.map(s=>s.id));state=fresh();
  try{const previous=localStorage.getItem(KEY);if(previous)state=validate(JSON.parse(previous));localStorage.setItem('twilight-mn-current-chapter',String(number));}catch{notice('Не удалось восстановить сохранение этой главы. Можно загрузить копию прогресса.');}
  translation=false;grammar=false;help=null;selected='';selectedIndex=null;reviewQueue=[];reviewIndex=0;reviewRevealed=false;$('#review').innerHTML='';$('#saved-words').hidden=false;$('#search').value='';$('#transfer-status').textContent='';
- setView('read');renderRead();window.scrollTo({top:0,behavior:'auto'});notifyParent(0);
+ setView('read');renderRead();window.scrollTo({top:0,behavior:'auto'});notifyParent(0);loadingUI.ready();
 }
 $('#chapter').addEventListener('change',e=>changeChapter(Number(e.target.value)));
 $('#level').addEventListener('change',e=>{stop();state.level=+e.target.value;translation=false;grammar=false;help=null;selected='';selectedIndex=null;save();renderRead();if(view==='quiz')renderQuiz();});$('#speed').addEventListener('change',e=>{player.playbackRate=+e.target.value;});$('#search').addEventListener('input',renderStory);
 $('#import').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;try{if(f.size>5000000)throw Error('Файл слишком большой.');const candidate=validate(JSON.parse(await f.text()));stop();state=candidate;save();translation=false;grammar=false;help=null;selected='';selectedIndex=null;reviewQueue=[];$('#review').innerHTML='';setView('read');renderRead();$('#transfer-status').textContent=`Прогресс загружен: ${state.read.length} эпизодов, ${state.saved.length} слов.`;}catch(err){$('#transfer-status').textContent='Импорт отклонён. Текущий прогресс сохранён. '+err.message;}e.target.value='';});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&help){help=null;selected='';selectedIndex=null;renderText();renderHelp();$('#help-toggle').focus({preventScroll:true});}const b=e.target.closest('[data-help]');if(b&&['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){e.preventDefault();help=e.key==='Home'?'grammar':e.key==='End'?'words':help==='grammar'?'words':'grammar';selected='';selectedIndex=null;renderText();renderHelp();$('[data-help="'+help+'"]').focus({preventScroll:true});}});
-renderRead();setView('read');
+renderRead();setView('read');loadingUI.ready();
 if(window.parent!==window){new ResizeObserver(()=>notifyParent()).observe(document.body);window.addEventListener('load',()=>notifyParent());}
 })();
